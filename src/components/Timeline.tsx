@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { addDays, format, eachDayOfInterval, parseISO, differenceInDays, isSameDay, getWeek, getYear } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useStore } from "../store"
@@ -9,19 +9,30 @@ import { v4 as uuidv4 } from "uuid"
 import { TimelineHeader } from "./TimelineHeader"
 import { TimelineRow } from "./TimelineRow"
 
-// Mostrar 3 meses (aproximadamente 90 dias)
-const DAYS_TO_SHOW = 90
 // Definir uma largura mínima para cada célula de dia
 export const DAY_CELL_WIDTH = 40 // pixels
 // Largura da coluna de nomes (aumentada em 30%)
 export const NAME_COLUMN_WIDTH = 260 // 200px * 1.3 = 260px
+// Quantidade inicial de dias a mostrar (3 meses)
+const INITIAL_DAYS_TO_SHOW = 90
+// Quantidade de dias a adicionar em cada carregamento
+const DAYS_INCREMENT = 30
+// Threshold para carregar mais dias (porcentagem do scroll - 80% significa que quando o usuário
+// estiver a 20% do final, carregaremos mais dias)
+const LOAD_MORE_THRESHOLD = 0.8
 
 export function Timeline() {
   const { teamMembers, allocations, projects, updateAllocation, addAllocation, removeAllocation } = useStore()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || "")
   const timelineRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [cellWidth, setCellWidth] = useState(DAY_CELL_WIDTH)
   const [cellHeight, setCellHeight] = useState(0)
+
+  // Estado para controlar quantos dias estamos mostrando
+  const [daysToShow, setDaysToShow] = useState(INITIAL_DAYS_TO_SHOW)
+  // Estado para monitorar se estamos carregando mais dias
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // Dragging state
   const [dragState, setDragState] = useState<{
@@ -37,10 +48,53 @@ export function Timeline() {
 
   const today = new Date()
   const startDate = today
+
+  // Gerar dias com base no estado daysToShow
   const days = eachDayOfInterval({
     start: startDate,
-    end: addDays(startDate, DAYS_TO_SHOW - 1),
+    end: addDays(startDate, daysToShow - 1),
   })
+
+  // Função para carregar mais dias quando o usuário rolar para a direita
+  const loadMoreDays = useCallback(() => {
+    if (isLoadingMore) return
+
+    setIsLoadingMore(true)
+
+    // Use setTimeout para evitar que a UI congele durante a atualização
+    setTimeout(() => {
+      setDaysToShow((prev) => prev + DAYS_INCREMENT)
+      setIsLoadingMore(false)
+    }, 100)
+  }, [isLoadingMore])
+
+  // Monitorar o scroll horizontal
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return
+
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+
+      // Calcular a posição de scroll relativa (0 a 1)
+      const scrollPosition = scrollLeft / (scrollWidth - clientWidth)
+
+      // Se o usuário estiver perto do final, carregar mais dias
+      if (scrollPosition > LOAD_MORE_THRESHOLD) {
+        loadMoreDays()
+      }
+    }
+
+    const scrollContainer = scrollContainerRef.current
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll)
+    }
+
+    return () => {
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", handleScroll)
+      }
+    }
+  }, [loadMoreDays])
 
   // Measure cell dimensions
   useEffect(() => {
@@ -52,7 +106,7 @@ export function Timeline() {
         setCellHeight(rect.height)
       }
     }
-  }, [])
+  }, [daysToShow]) // Atualizar quando daysToShow mudar
 
   // Handle mouse events
   useEffect(() => {
@@ -231,7 +285,7 @@ export function Timeline() {
   })
 
   // Criar um estilo de grid com colunas de largura fixa
-  const gridTemplateColumns = `${NAME_COLUMN_WIDTH}px repeat(${DAYS_TO_SHOW}, minmax(${DAY_CELL_WIDTH}px, 1fr))`
+  const gridTemplateColumns = `${NAME_COLUMN_WIDTH}px repeat(${daysToShow}, minmax(${DAY_CELL_WIDTH}px, 1fr))`
 
   return (
     <div className="overflow-x-auto">
@@ -248,10 +302,15 @@ export function Timeline() {
             </option>
           ))}
         </select>
+
+        {/* Exibir informação sobre dias carregados */}
+        <div className="ml-auto text-sm text-gray-500">
+          Showing {daysToShow} days ({Math.round(daysToShow / 30)} months)
+        </div>
       </div>
 
-      <div className="overflow-x-auto" style={{ maxWidth: "100%" }}>
-        <div style={{ width: `${NAME_COLUMN_WIDTH + DAYS_TO_SHOW * DAY_CELL_WIDTH}px` }} ref={timelineRef}>
+      <div className="overflow-x-auto" style={{ maxWidth: "100%" }} ref={scrollContainerRef}>
+        <div style={{ width: `${NAME_COLUMN_WIDTH + daysToShow * DAY_CELL_WIDTH}px` }} ref={timelineRef}>
           <TimelineHeader
             days={days}
             daysByMonth={daysByMonth}
@@ -280,6 +339,14 @@ export function Timeline() {
               />
             ))}
           </div>
+
+          {/* Indicador de carregamento quando estiver adicionando mais dias */}
+          {isLoadingMore && (
+            <div className="text-center py-4 bg-white/80 fixed bottom-0 right-0 left-0">
+              <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-blue-500 border-r-transparent"></div>
+              <span className="ml-2">Loading more days...</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
