@@ -46,13 +46,14 @@ export const AllocationBlock: React.FC<AllocationBlockProps> = ({
 
   return (
     <div
-      className={`absolute top-1 bottom-1 left-0 z-10 rounded overflow-hidden group ${isDragging ? "shadow-lg" : ""} ${
+      className={`absolute top-1 bottom-1 left-0 z-10 rounded overflow-hidden group ${isDragging ? "shadow-lg opacity-80" : ""} ${
         isSelected ? "ring-2 ring-blue-500" : ""
       }`}
       style={{
         width: `calc(${durationDays * 100}% - 2px)`,
         backgroundColor: project.color,
         cursor: "move",
+        transition: isDragging ? "none" : "all 0.1s ease",
       }}
       onMouseDown={(e) => onMouseDown(e, "move", allocation)}
     >

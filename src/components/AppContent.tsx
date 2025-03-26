@@ -10,10 +10,13 @@ import { Auth } from "./auth/Auth"
 export function AppContent() {
   const { user, signOut } = useAuth()
   const { teamMembers, projects, addTeamMember, addProject, fetchUserData, loading, initialized } = useStore()
+
   const [showAddMember, setShowAddMember] = useState(false)
   const [showAddProject, setShowAddProject] = useState(false)
   const [newMember, setNewMember] = useState({ name: "", role: "" })
   const [newProject, setNewProject] = useState({ name: "", color: "#3b82f6" })
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Fetch user data when authenticated
   useEffect(() => {
@@ -24,24 +27,46 @@ export function AppContent() {
 
   const handleAddMember = async () => {
     if (newMember.name && newMember.role) {
-      await addTeamMember({
-        name: newMember.name,
-        role: newMember.role,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newMember.name)}&background=random`,
-      })
-      setNewMember({ name: "", role: "" })
-      setShowAddMember(false)
+      setIsSubmitting(true)
+      setError(null)
+
+      try {
+        await addTeamMember({
+          name: newMember.name,
+          role: newMember.role,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newMember.name)}&background=random`,
+        })
+
+        setNewMember({ name: "", role: "" })
+        setShowAddMember(false)
+      } catch (err) {
+        setError("Failed to add team member. Please try again.")
+        console.error(err)
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
   const handleAddProject = async () => {
     if (newProject.name && newProject.color) {
-      await addProject({
-        name: newProject.name,
-        color: newProject.color,
-      })
-      setNewProject({ name: "", color: "#3b82f6" })
-      setShowAddProject(false)
+      setIsSubmitting(true)
+      setError(null)
+
+      try {
+        await addProject({
+          name: newProject.name,
+          color: newProject.color,
+        })
+
+        setNewProject({ name: "", color: "#3b82f6" })
+        setShowAddProject(false)
+      } catch (err) {
+        setError("Failed to add project. Please try again.")
+        console.error(err)
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -73,6 +98,8 @@ export function AppContent() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
+
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -86,6 +113,7 @@ export function AppContent() {
                   <button
                     onClick={() => setShowAddMember(!showAddMember)}
                     className="p-1 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100"
+                    disabled={isSubmitting}
                   >
                     {showAddMember ? <X size={16} /> : <Plus size={16} />}
                   </button>
@@ -100,6 +128,7 @@ export function AppContent() {
                         value={newMember.name}
                         onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
                         className="w-full p-2 border rounded"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div className="mb-2">
@@ -109,32 +138,38 @@ export function AppContent() {
                         value={newMember.role}
                         onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
                         className="w-full p-2 border rounded"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <button
                       onClick={handleAddMember}
-                      className="w-full mt-2 bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+                      className="w-full mt-2 bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                      disabled={isSubmitting || !newMember.name || !newMember.role}
                     >
-                      Add Member
+                      {isSubmitting ? "Adding..." : "Add Member"}
                     </button>
                   </div>
                 )}
 
-                <ul className="space-y-2">
-                  {teamMembers.map((member) => (
-                    <li key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
-                      <img
-                        src={member.avatar || "/placeholder.svg"}
-                        alt={member.name}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div>
-                        <div className="font-medium">{member.name}</div>
-                        <div className="text-sm text-gray-500">{member.role}</div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                {teamMembers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No team members yet. Add your first team member!</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {teamMembers.map((member) => (
+                      <li key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
+                        <img
+                          src={member.avatar || "/placeholder.svg"}
+                          alt={member.name}
+                          className="w-8 h-8 rounded-full"
+                        />
+                        <div>
+                          <div className="font-medium">{member.name}</div>
+                          <div className="text-sm text-gray-500">{member.role}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="bg-white rounded-lg shadow p-4 flex-1 min-w-[300px]">
@@ -143,6 +178,7 @@ export function AppContent() {
                   <button
                     onClick={() => setShowAddProject(!showAddProject)}
                     className="p-1 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100"
+                    disabled={isSubmitting}
                   >
                     {showAddProject ? <X size={16} /> : <Plus size={16} />}
                   </button>
@@ -157,6 +193,7 @@ export function AppContent() {
                         value={newProject.name}
                         onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
                         className="w-full p-2 border rounded"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div className="mb-2">
@@ -167,27 +204,33 @@ export function AppContent() {
                           value={newProject.color}
                           onChange={(e) => setNewProject({ ...newProject, color: e.target.value })}
                           className="p-1 border rounded h-8 w-8"
+                          disabled={isSubmitting}
                         />
                         <span className="text-sm">{newProject.color}</span>
                       </div>
                     </div>
                     <button
                       onClick={handleAddProject}
-                      className="w-full mt-2 bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+                      className="w-full mt-2 bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                      disabled={isSubmitting || !newProject.name}
                     >
-                      Add Project
+                      {isSubmitting ? "Adding..." : "Add Project"}
                     </button>
                   </div>
                 )}
 
-                <ul className="space-y-2">
-                  {projects.map((project) => (
-                    <li key={project.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
-                      <div className="w-4 h-4 rounded" style={{ backgroundColor: project.color }}></div>
-                      <div className="font-medium">{project.name}</div>
-                    </li>
-                  ))}
-                </ul>
+                {projects.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No projects yet. Add your first project!</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {projects.map((project) => (
+                      <li key={project.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: project.color }}></div>
+                        <div className="font-medium">{project.name}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 

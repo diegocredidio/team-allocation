@@ -90,168 +90,208 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   addTeamMember: async (member) => {
-    const { user } = await supabase.auth.getUser()
-    if (!user) return
-
-    const newMember = {
-      id: uuidv4(),
-      ...member,
-    }
-
-    set((state) => ({ teamMembers: [...state.teamMembers, newMember] }))
-
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
+      const newMemberId = uuidv4()
+
+      // Insert into Supabase
       const { error } = await supabase.from("team_members").insert({
-        id: newMember.id,
+        id: newMemberId,
         user_id: user.id,
-        name: newMember.name,
-        role: newMember.role,
-        avatar: newMember.avatar,
+        name: member.name,
+        role: member.role,
+        avatar: member.avatar,
       })
 
       if (error) throw error
+
+      // Add to local state after successful DB insert
+      const newMember = {
+        id: newMemberId,
+        ...member,
+      }
+
+      set((state) => ({
+        teamMembers: [...state.teamMembers, newMember],
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error adding team member:", error)
-      // Revert optimistic update on error
-      set((state) => ({
-        teamMembers: state.teamMembers.filter((m) => m.id !== newMember.id),
-      }))
+      return Promise.reject(error)
     }
   },
 
   updateTeamMember: async (id, updates) => {
-    set((state) => ({
-      teamMembers: state.teamMembers.map((member) => (member.id === id ? { ...member, ...updates } : member)),
-    }))
-
     try {
+      // Update in Supabase
       const { error } = await supabase.from("team_members").update(updates).eq("id", id)
 
       if (error) throw error
+
+      // Update local state
+      set((state) => ({
+        teamMembers: state.teamMembers.map((member) => (member.id === id ? { ...member, ...updates } : member)),
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error updating team member:", error)
-      // Revert optimistic update on error
-      await get().fetchUserData((await supabase.auth.getUser()).user?.id || "")
+      return Promise.reject(error)
     }
   },
 
   removeTeamMember: async (id) => {
-    const previousState = get().teamMembers
-    set((state) => ({
-      teamMembers: state.teamMembers.filter((member) => member.id !== id),
-    }))
-
     try {
+      // Delete from Supabase
       const { error } = await supabase.from("team_members").delete().eq("id", id)
+
       if (error) throw error
+
+      // Remove from local state
+      set((state) => ({
+        teamMembers: state.teamMembers.filter((member) => member.id !== id),
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error removing team member:", error)
-      // Revert optimistic update on error
-      set({ teamMembers: previousState })
+      return Promise.reject(error)
     }
   },
 
   addProject: async (project) => {
-    const { user } = await supabase.auth.getUser()
-    if (!user) return
-
-    const newProject = {
-      id: uuidv4(),
-      ...project,
-    }
-
-    set((state) => ({ projects: [...state.projects, newProject] }))
-
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
+      const newProjectId = uuidv4()
+
+      // Insert into Supabase
       const { error } = await supabase.from("projects").insert({
-        id: newProject.id,
+        id: newProjectId,
         user_id: user.id,
-        name: newProject.name,
-        color: newProject.color,
+        name: project.name,
+        color: project.color,
       })
 
       if (error) throw error
+
+      // Add to local state after successful DB insert
+      const newProject = {
+        id: newProjectId,
+        ...project,
+      }
+
+      set((state) => ({
+        projects: [...state.projects, newProject],
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error adding project:", error)
-      // Revert optimistic update on error
-      set((state) => ({
-        projects: state.projects.filter((p) => p.id !== newProject.id),
-      }))
+      return Promise.reject(error)
     }
   },
 
   updateProject: async (id, updates) => {
-    set((state) => ({
-      projects: state.projects.map((project) => (project.id === id ? { ...project, ...updates } : project)),
-    }))
-
     try {
+      // Update in Supabase
       const { error } = await supabase.from("projects").update(updates).eq("id", id)
 
       if (error) throw error
+
+      // Update local state
+      set((state) => ({
+        projects: state.projects.map((project) => (project.id === id ? { ...project, ...updates } : project)),
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error updating project:", error)
-      // Revert optimistic update on error
-      await get().fetchUserData((await supabase.auth.getUser()).user?.id || "")
+      return Promise.reject(error)
     }
   },
 
   removeProject: async (id) => {
-    const previousState = get().projects
-    set((state) => ({
-      projects: state.projects.filter((project) => project.id !== id),
-    }))
-
     try {
+      // Delete from Supabase
       const { error } = await supabase.from("projects").delete().eq("id", id)
+
       if (error) throw error
+
+      // Remove from local state
+      set((state) => ({
+        projects: state.projects.filter((project) => project.id !== id),
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error removing project:", error)
-      // Revert optimistic update on error
-      set({ projects: previousState })
+      return Promise.reject(error)
     }
   },
 
   addAllocation: async (allocation) => {
-    const { user } = await supabase.auth.getUser()
-    if (!user) return
-
-    const newAllocation = {
-      id: uuidv4(),
-      ...allocation,
-    }
-
-    set((state) => ({ allocations: [...state.allocations, newAllocation] }))
-
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
+      const newAllocationId = uuidv4()
+
+      // Insert into Supabase
       const { error } = await supabase.from("allocations").insert({
-        id: newAllocation.id,
+        id: newAllocationId,
         user_id: user.id,
-        team_member_id: newAllocation.teamMemberId,
-        project_id: newAllocation.projectId,
-        start_date: newAllocation.startDate,
-        end_date: newAllocation.endDate,
-        percentage: newAllocation.percentage,
+        team_member_id: allocation.teamMemberId,
+        project_id: allocation.projectId,
+        start_date: allocation.startDate,
+        end_date: allocation.endDate,
+        percentage: allocation.percentage,
       })
 
       if (error) throw error
+
+      // Add to local state after successful DB insert
+      const newAllocation = {
+        id: newAllocationId,
+        ...allocation,
+      }
+
+      set((state) => ({
+        allocations: [...state.allocations, newAllocation],
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error adding allocation:", error)
-      // Revert optimistic update on error
-      set((state) => ({
-        allocations: state.allocations.filter((a) => a.id !== newAllocation.id),
-      }))
+      return Promise.reject(error)
     }
   },
 
   updateAllocation: async (id, updates) => {
-    set((state) => ({
-      allocations: state.allocations.map((allocation) =>
-        allocation.id === id ? { ...allocation, ...updates } : allocation,
-      ),
-    }))
-
     try {
+      // First update local state for immediate UI feedback
+      set((state) => ({
+        allocations: state.allocations.map((allocation) =>
+          allocation.id === id ? { ...allocation, ...updates } : allocation,
+        ),
+      }))
+
+      // Get the current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
+
       // Convert from camelCase to snake_case for the database
       const dbUpdates: any = {}
       if (updates.teamMemberId) dbUpdates.team_member_id = updates.teamMemberId
@@ -260,29 +300,46 @@ export const useStore = create<Store>((set, get) => ({
       if (updates.endDate) dbUpdates.end_date = updates.endDate
       if (updates.percentage !== undefined) dbUpdates.percentage = updates.percentage
 
-      const { error } = await supabase.from("allocations").update(dbUpdates).eq("id", id)
+      // Add updated_at timestamp
+      dbUpdates.updated_at = new Date().toISOString()
 
-      if (error) throw error
+      console.log("Updating allocation in Supabase:", id, dbUpdates)
+
+      // Update in Supabase
+      const { error } = await supabase.from("allocations").update(dbUpdates).eq("id", id).eq("user_id", user.id)
+
+      if (error) {
+        console.error("Supabase update error:", error)
+        throw error
+      }
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error updating allocation:", error)
+
       // Revert optimistic update on error
-      await get().fetchUserData((await supabase.auth.getUser()).user?.id || "")
+      await get().fetchUserData((await supabase.auth.getUser()).data.user?.id || "")
+
+      return Promise.reject(error)
     }
   },
 
   removeAllocation: async (id) => {
-    const previousState = get().allocations
-    set((state) => ({
-      allocations: state.allocations.filter((allocation) => allocation.id !== id),
-    }))
-
     try {
+      // Delete from Supabase
       const { error } = await supabase.from("allocations").delete().eq("id", id)
+
       if (error) throw error
+
+      // Remove from local state
+      set((state) => ({
+        allocations: state.allocations.filter((allocation) => allocation.id !== id),
+      }))
+
+      return Promise.resolve()
     } catch (error) {
       console.error("Error removing allocation:", error)
-      // Revert optimistic update on error
-      set({ allocations: previousState })
+      return Promise.reject(error)
     }
   },
 }))
